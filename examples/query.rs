@@ -18,8 +18,8 @@ async fn main() -> Result<()> {
     let url = "file://./examples/data.json";
     let sql = format!("SELECT name FROM {} where age >= 18", url);
 
-    let df = query(sql).await?;
-    println!("{}", df);
+    let mut df = query(sql).await?;
+    println!("{}", df.to_json().unwrap());
 
     Ok(())
 }

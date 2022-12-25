@@ -50,6 +50,22 @@ impl DataSet {
         writer.finish(&mut self.0)?;
         Ok(String::from_utf8(buf)?)
     }
+
+    pub fn to_json(&mut self) -> Result<String> {
+        let mut buf = Vec::new();
+        let writer = JsonWriter::new(&mut buf);
+        writer
+            .with_json_format(JsonFormat::JsonLines)
+            .finish(&mut self.0)?;
+        let s = String::from_utf8(buf)?;
+
+        let tmp: Vec<&str> = s.lines().collect();
+        let mut s = String::new();
+        s.push('[');
+        s.push_str(tmp.join(",").as_str());
+        s.push(']');
+        Ok(s)
+    }
 }
 
 pub async fn query(sql: impl AsRef<str>) -> Result<DataSet> {
