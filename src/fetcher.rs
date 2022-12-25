@@ -27,6 +27,7 @@ impl<'a> Fetch for HttpFetcher<'a> {
 
     async fn fetch(&self) -> Result<(filetype::Filetype, String), Self::Error> {
         let resp = reqwest::get(self.0).await?;
+        // 1. try to get filetype from cntent-type header
         let content_type = resp
             .headers()
             .get("Content-Type")
@@ -37,14 +38,10 @@ impl<'a> Fetch for HttpFetcher<'a> {
             return Ok((file_type, resp.text().await?));
         }
 
-        let parts: Vec<&str> = self.0.split("/").collect();
-        let last_part = parts[parts.len() - 1];
+        // 2. try to get filetype from url
+        let last_part = self.0.split("/").last();
 
-        let file_type = filetype::get_data_filetype(
-            last_part
-                .find(".")
-                .and_then(|idx| Some(&last_part[idx + 1..])),
-        );
+        let file_type = filetype::get_data_filetype(last_part.and_then(|x| x.split(".").last()));
 
         Ok((file_type, resp.text().await?))
     }
@@ -71,10 +68,12 @@ mod tests {
     async fn retrieve_data_should_work() {
         let url = "file://./examples/data.json";
         let data = retrieve_data(url).await.unwrap();
+        assert_eq!(filetype::Filetype::Json, data.0);
         println!("type {:?}, data {}", data.0, data.1);
 
         let url = "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/latest/owid-covid-latest.csv";
         let data = retrieve_data(url).await.unwrap();
+        assert_eq!(filetype::Filetype::Csv, data.0);
         println!("type {:?}, data {}", data.0, data.1);
     }
 
@@ -87,6 +86,6 @@ mod tests {
             .get("Content-Type")
             .and_then(|x| x.to_str().ok().map(|s| s.split("/").last()))
             .flatten();
-        println!("{:?}", content_type);
+        assert_eq!(Some("json"), content_type);
     }
 }
