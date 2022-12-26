@@ -1,6 +1,3 @@
-#![feature(async_fn_in_trait)]
-#![feature(impl_trait_projections)]
-
 use anyhow::{anyhow, Result};
 use polars::prelude::*;
 use sqlparser::parser::Parser;
@@ -16,8 +13,8 @@ use crate::{
 
 mod ast_convert;
 mod dialect;
-mod fetcher;
-mod filetype;
+pub mod fetcher;
+pub mod filetype;
 mod transformer;
 
 #[derive(Debug)]
