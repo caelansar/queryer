@@ -1,0 +1,18 @@
+[package]
+name = "queryer-c"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+
+[dependencies]
+libc = "0.2.139"
+queryer-rs = { path = "../queryer-rs" }
+tokio = { version = "1.20.0", features = ["full"] }
+
+[build-dependencies]
+cbindgen = "0.24.3"
