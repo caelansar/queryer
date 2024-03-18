@@ -1,45 +1,12 @@
-use std::{collections::HashMap, ffi::OsStr, path::Path, sync::Mutex};
+use std::{ffi::OsStr, path::Path};
 
 use crate::filetype;
-use anyhow::{anyhow, Result};
-use async_trait::async_trait;
-use lazy_static::lazy_static;
+use anyhow::{anyhow, bail, Result};
 use tokio::fs;
 
-#[async_trait]
 pub trait Fetch {
     type Error;
     async fn fetch(&self, source: &str) -> Result<(filetype::Filetype, String), Self::Error>;
-}
-
-lazy_static! {
-    static ref FETCHER_REGISTRY: Mutex<FetcherRegistry> = Mutex::new(FetcherRegistry::new());
-}
-
-pub struct FetcherRegistry {
-    registry: HashMap<String, Box<dyn Fetch<Error = anyhow::Error> + Sync + Send>>,
-}
-
-impl FetcherRegistry {
-    pub fn new() -> Self {
-        let mut registry: HashMap<String, Box<dyn Fetch<Error = anyhow::Error> + Sync + Send>> =
-            HashMap::new();
-        registry.insert("http".to_string(), Box::new(HttpFetcher()));
-        registry.insert("https".to_string(), Box::new(HttpFetcher()));
-        registry.insert("file".to_string(), Box::new(FileFetcher()));
-        Self { registry }
-    }
-}
-
-pub fn register_fetcher<T: Fetch<Error = anyhow::Error> + Sync + Send + 'static>(
-    protocol: impl AsRef<str>,
-    fetcher: T,
-) {
-    FETCHER_REGISTRY
-        .lock()
-        .unwrap()
-        .registry
-        .insert(protocol.as_ref().into(), Box::new(fetcher));
 }
 
 pub async fn retrieve_data(source: impl AsRef<str>) -> Result<(filetype::Filetype, String)> {
@@ -47,28 +14,26 @@ pub async fn retrieve_data(source: impl AsRef<str>) -> Result<(filetype::Filetyp
 
     let protocol = name.split("://").next();
 
-    if let Some(p) = protocol {
-        let r = FETCHER_REGISTRY.lock().unwrap();
-        let fetcher = r
-            .registry
-            .get(p)
-            .ok_or(anyhow!("fetcher not found in for given protocol"))?;
-        fetcher.fetch(source.as_ref()).await
+    if let Some(protocol) = protocol {
+        match protocol {
+            "file" => FileFetcher().fetch(name).await,
+            "http" | "https" => HttpFetcher().fetch(name).await,
+            _ => todo!(),
+        }
     } else {
-        Err(anyhow!("protocol is not specified in source"))
+        bail!("protocol is not specified in source")
     }
 }
 
 struct HttpFetcher();
 struct FileFetcher();
 
-#[async_trait]
 impl Fetch for HttpFetcher {
     type Error = anyhow::Error;
 
     async fn fetch(&self, source: &str) -> Result<(filetype::Filetype, String), Self::Error> {
         let resp = reqwest::get(source).await?;
-        // 1. try to get filetype from cntent-type header
+        // 1. try to get filetype from content-type header
         let content_type = resp
             .headers()
             .get("Content-Type")
@@ -88,7 +53,6 @@ impl Fetch for HttpFetcher {
     }
 }
 
-#[async_trait]
 impl Fetch for FileFetcher {
     type Error = anyhow::Error;
 

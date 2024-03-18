@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use polars::prelude::*;
 use sqlparser::parser::Parser;
 use std::{
@@ -85,7 +85,12 @@ pub async fn query(sql: impl AsRef<str>) -> Result<DataSet> {
 
     info!("retrieving data from source: {}", source);
 
-    let ds = detect_content(retrieve_data(source).await?)?.transform()?;
+    let ds = detect_content(
+        retrieve_data(source)
+            .await
+            .context("failed to retrieve data")?,
+    )?
+    .transform()?;
 
     let mut filtered = match condition {
         Some(expr) => ds.0.lazy().filter(expr),

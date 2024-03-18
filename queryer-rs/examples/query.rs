@@ -1,9 +1,5 @@
 use anyhow::Result;
-use async_trait::async_trait;
-use queryer_rs::{
-    fetcher::{register_fetcher, Fetch},
-    filetype, query,
-};
+use queryer_rs::{fetcher::Fetch, filetype, query};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -20,26 +16,20 @@ async fn main() -> Result<()> {
     println!("{}", df);
 
     // file fetcher
-    let url = "file://./examples/data.json";
+    let url = "file://./queryer-rs/examples/data.json";
     let sql = format!("SELECT name FROM {} where age >= 18", url);
 
     let mut df = query(sql).await?;
-    println!("{}", df.to_json().unwrap());
-
-    // register custom fetcher
-    register_fetcher("custom", CustomFetcher());
-    let url = "custom://do_not_care";
-    let sql = format!("SELECT * FROM {} where score >= 60", url);
-
-    let mut df = query(sql).await?;
-    println!("{}", df.to_json().unwrap());
+    assert_eq!(
+        "[{\"name\":\"bb\"},{\"name\":\"cc\"}]",
+        df.to_json().unwrap()
+    );
 
     Ok(())
 }
 
 struct CustomFetcher();
 
-#[async_trait]
 impl Fetch for CustomFetcher {
     type Error = anyhow::Error;
 
