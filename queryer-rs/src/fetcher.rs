@@ -1,38 +1,39 @@
-use std::{ffi::OsStr, path::Path};
+use std::{
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 
 use crate::filetype;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use tokio::fs;
 
 pub trait Fetch {
     type Error;
-    async fn fetch(&self, source: &str) -> Result<(filetype::Filetype, String), Self::Error>;
+    async fn fetch(&self) -> Result<(filetype::Filetype, String), Self::Error>;
 }
 
 pub async fn retrieve_data(source: impl AsRef<str>) -> Result<(filetype::Filetype, String)> {
-    let name = source.as_ref();
+    let source = source.as_ref();
 
-    let protocol = name.split("://").next();
+    let (protocol, name) = source
+        .split_once("://")
+        .ok_or(anyhow!("protocol is not specified in source"))?;
 
-    if let Some(protocol) = protocol {
-        match protocol {
-            "file" => FileFetcher().fetch(name).await,
-            "http" | "https" => HttpFetcher().fetch(name).await,
-            _ => todo!(),
-        }
-    } else {
-        bail!("protocol is not specified in source")
+    match protocol {
+        "file" => FileFetcher(PathBuf::from(name).as_path()).fetch().await,
+        "http" | "https" => HttpFetcher(source).fetch().await,
+        _ => todo!(),
     }
 }
 
-struct HttpFetcher();
-struct FileFetcher();
+struct HttpFetcher<'a>(&'a str);
+struct FileFetcher<'a>(&'a Path);
 
-impl Fetch for HttpFetcher {
+impl<'a> Fetch for HttpFetcher<'a> {
     type Error = anyhow::Error;
 
-    async fn fetch(&self, source: &str) -> Result<(filetype::Filetype, String), Self::Error> {
-        let resp = reqwest::get(source).await?;
+    async fn fetch(&self) -> Result<(filetype::Filetype, String), Self::Error> {
+        let resp = reqwest::get(self.0).await?;
         // 1. try to get filetype from content-type header
         let content_type = resp
             .headers()
@@ -45,7 +46,7 @@ impl Fetch for HttpFetcher {
         }
 
         // 2. try to get filetype from url
-        let last_part = source.split("/").last();
+        let last_part = self.0.split("/").last();
 
         let file_type = filetype::get_data_filetype(last_part.and_then(|x| x.split(".").last()));
 
@@ -53,14 +54,14 @@ impl Fetch for HttpFetcher {
     }
 }
 
-impl Fetch for FileFetcher {
+impl<'a> Fetch for FileFetcher<'a> {
     type Error = anyhow::Error;
 
-    async fn fetch(&self, source: &str) -> Result<(filetype::Filetype, String), Self::Error> {
-        let ext = Path::new(&source[7..]).extension().and_then(OsStr::to_str);
+    async fn fetch(&self) -> Result<(filetype::Filetype, String), Self::Error> {
+        let ext = self.0.extension().and_then(OsStr::to_str);
         let file_type = filetype::get_data_filetype(ext);
 
-        Ok((file_type, fs::read_to_string(&source[7..]).await?))
+        Ok((file_type, fs::read_to_string(self.0).await?))
     }
 }
 

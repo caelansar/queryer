@@ -33,7 +33,7 @@ struct CustomFetcher();
 impl Fetch for CustomFetcher {
     type Error = anyhow::Error;
 
-    async fn fetch(&self, _source: &str) -> Result<(filetype::Filetype, String), Self::Error> {
+    async fn fetch(&self) -> Result<(filetype::Filetype, String), Self::Error> {
         Ok((
             filetype::Filetype::Json,
             r#"
