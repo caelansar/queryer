@@ -66,7 +66,7 @@ impl DataSet {
 }
 
 pub async fn query(sql: impl AsRef<str>) -> Result<DataSet> {
-    let ast = Parser::parse_sql(&SqlDialect::default(), sql.as_ref())?;
+    let ast = Parser::parse_sql(&SqlDialect, sql.as_ref())?;
 
     if ast.len() != 1 {
         return Err(anyhow!("only support single sql"));

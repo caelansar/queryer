@@ -53,7 +53,7 @@ impl<'a> TryFrom<&'a Statement> for Sql<'a> {
 
                 let mut selection = Vec::with_capacity(8);
                 for p in projection {
-                    let expr = Projection(&p).try_into()?;
+                    let expr = Projection(p).try_into()?;
                     selection.push(expr);
                 }
 

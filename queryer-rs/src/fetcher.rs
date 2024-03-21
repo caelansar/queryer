@@ -38,7 +38,7 @@ impl<'a> Fetch for HttpFetcher<'a> {
         let content_type = resp
             .headers()
             .get("Content-Type")
-            .and_then(|x| x.to_str().ok().map(|s| s.split("/").last()))
+            .and_then(|x| x.to_str().ok().map(|s| s.split('/').last()))
             .flatten();
         let file_type = filetype::get_data_filetype(content_type);
         if file_type != filetype::Filetype::Unknown {
@@ -46,9 +46,9 @@ impl<'a> Fetch for HttpFetcher<'a> {
         }
 
         // 2. try to get filetype from url
-        let last_part = self.0.split("/").last();
+        let last_part = self.0.split('/').last();
 
-        let file_type = filetype::get_data_filetype(last_part.and_then(|x| x.split(".").last()));
+        let file_type = filetype::get_data_filetype(last_part.and_then(|x| x.split('.').last()));
 
         Ok((file_type, resp.text().await?))
     }
